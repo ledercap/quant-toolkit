@@ -1,0 +1,33 @@
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+
+# Data (link to sources instead; small samples are allowed in sample/ folders)
+*.csv
+*.parquet
+*.feather
+*.h5
+*.xlsx
+*.db
+*.sqlite
+!**/sample/*.csv
+
+# Tooling
+.DS_Store
+.vscode/
+.idea/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
