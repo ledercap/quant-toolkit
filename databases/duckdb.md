@@ -100,24 +100,30 @@ Parameters use DuckDB's `$name` syntax. From Python: `con.execute(sql, {"cik": "
 -- name: annual_fact_as_of
 -- One value per fiscal year for a tag, using only filings public on $as_of.
 -- Annual = a duration fact of 350 to 380 days. Latest filing wins (restatements).
-SELECT period_start, period_end, value, filed, form
+-- arg_max(x, filed) takes x from the latest filing. (A QUALIFY / row_number() version
+-- of this query hits an internal error in DuckDB 1.5.x; arg_max works in 1.4 and 1.5.)
+SELECT arg_max(period_start, filed) AS period_start,
+       period_end,
+       arg_max(value, filed)        AS value,
+       max(filed)                   AS filed,
+       arg_max(form, filed)         AS form
 FROM statement_facts
 WHERE cik = $cik
   AND tag = $tag
   AND unit = 'USD'
   AND filed <= $as_of
   AND date_diff('day', period_start, period_end) BETWEEN 350 AND 380
-QUALIFY row_number() OVER (PARTITION BY period_end ORDER BY filed DESC) = 1
+GROUP BY period_end
 ORDER BY period_end;
 
 -- name: annual_growth
 -- Year-over-year growth for a tag, point-in-time as of $as_of.
 WITH annual AS (
-    SELECT period_end, value
+    SELECT period_end, arg_max(value, filed) AS value
     FROM statement_facts
     WHERE cik = $cik AND tag = $tag AND unit = 'USD' AND filed <= $as_of
       AND date_diff('day', period_start, period_end) BETWEEN 350 AND 380
-    QUALIFY row_number() OVER (PARTITION BY period_end ORDER BY filed DESC) = 1
+    GROUP BY period_end
 )
 SELECT period_end,
        value,

@@ -44,14 +44,14 @@ And the same six queries: `annual_fact_as_of`, `annual_growth`, `daily_returns`,
 
 ## Review log
 
-**Batch 1, 2026-10-15** (7 entries). Tested entries had their schema created, real data loaded (Apple's SEC EDGAR facts and an SPY Cboe chain), and every query run. All tested stores returned identical results.
+**Batch 1, 2026-10-15** (7 entries). Re-run from a fresh clone on Python 3.11. Tested entries had their schema created, real data loaded (Apple's SEC EDGAR facts and an SPY Cboe chain), and every query run. All tested stores returned identical results.
 
 | File | Tested? | Notes for reviewers |
 | --- | --- | --- |
 | arcticdb.md | Yes (ArcticDB 6.28, LMDB) | Nullable pandas dtypes fail to write; duplicate appends aren't rejected. Both are handled in the loader. |
 | clickhouse.md | No | No server available here, and embedded chDB wouldn't load on this macOS. Check syntax before relying on it. |
-| duckdb.md | Yes (DuckDB 1.4) | Reference implementation; loaders for EDGAR, Treasury and Cboe all ran |
+| duckdb.md | Yes (DuckDB 1.4.5 and 1.5.6) | Reference implementation; loaders for EDGAR, Treasury and Cboe all ran. Point-in-time queries use `arg_max` because the `QUALIFY` form crashes DuckDB 1.5.x. |
 | kdb.md | No | Needs a KX license. q code is written by hand; check it in a q session. |
-| parquet.md | Yes (pyarrow + DuckDB) | |
+| parquet.md | Yes (pyarrow + DuckDB 1.4.5 and 1.5.6) | |
 | postgresql-timescaledb.md | No | No PostgreSQL server available here. Standard SQL plus TimescaleDB calls. |
 | sqlite.md | Yes (SQLite 3.54) | |

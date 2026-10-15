@@ -57,11 +57,13 @@ ORDER BY strike;
 
 -- name: annual_fact_as_of
 -- Reads only the one company's folder.
-SELECT period_start, period_end, value, filed, form
+-- arg_max(x, filed) takes x from the latest filing (works in DuckDB 1.4 and 1.5).
+SELECT arg_max(period_start, filed) AS period_start, period_end,
+       arg_max(value, filed) AS value, max(filed) AS filed, arg_max(form, filed) AS form
 FROM statement_facts
 WHERE cik = $cik AND tag = $tag AND unit = 'USD' AND filed <= $as_of
   AND date_diff('day', period_start, period_end) BETWEEN 350 AND 380
-QUALIFY row_number() OVER (PARTITION BY period_end ORDER BY filed DESC) = 1
+GROUP BY period_end
 ORDER BY period_end;
 ```
 
