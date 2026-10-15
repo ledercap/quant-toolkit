@@ -53,5 +53,5 @@ And the same six queries: `annual_fact_as_of`, `annual_growth`, `daily_returns`,
 | duckdb.md | Yes (DuckDB 1.4.5 and 1.5.6) | Reference implementation; loaders for EDGAR, Treasury and Cboe all ran. Point-in-time queries use `arg_max` because the `QUALIFY` form crashes DuckDB 1.5.x. |
 | kdb.md | No | Needs a KX license. q code is written by hand; check it in a q session. |
 | parquet.md | Yes (pyarrow + DuckDB 1.4.5 and 1.5.6) | |
-| postgresql-timescaledb.md | No | No PostgreSQL server available here. Standard SQL plus TimescaleDB calls. |
+| postgresql-timescaledb.md | Partly (PostgreSQL 17.11) | Schema, the COPY loader and all six queries ran on plain PostgreSQL with identical results. TimescaleDB lines (hypertables, compression, `daily_gex_history`) not run: the extension wasn't available here. |
 | sqlite.md | Yes (SQLite 3.54) | |
