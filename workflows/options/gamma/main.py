@@ -1,11 +1,11 @@
-"""Dealer gamma exposure (GEX) from a Cboe options chain: by strike, total, walls and flip level.
+"""Dealer gamma exposure (GEX) from a Cboe options chain: by strike, total, walls, flip level and sensitivity range.
 
 Convention (SqueezeMetrics): dealers are long the calls and short the puts that customers
 hold, so call gamma counts positive and put gamma negative. GEX is in dollars of delta
 change per 1% move in the underlying.
 
 Usage:
-    python main.py                    # SPX, all expiries, compared with SqueezeMetrics GEX
+    python main.py                    # SPX, with SqueezeMetrics GEX in the sensitivity range
     python main.py --symbol SPY
     python main.py --sample           # offline, from sample/chain.csv
 """
@@ -103,6 +103,26 @@ def zero_crossing(profile: pd.Series, spot: float) -> float | None:
     return min(crossings, key=lambda c: abs(c - spot)) if crossings else None
 
 
+# Each variant is one defensible assumption about which contracts drive dealer hedging.
+# Reporting the range and median across them shows how much the headline depends on choices.
+SENSITIVITY_VARIANTS = {
+    "base (all expiries)": lambda d: pd.Series(True, index=d.index),
+    "excl. 0-1 day expiries": lambda d: d["T"] > 1 / 365,         # OI is a day stale for same-day options
+    "excl. contracts with no IV": lambda d: d["iv"] > 0,          # only contracts with precise model gamma
+    "expiries <= 90 days": lambda d: d["T"] <= 90 / 365,          # near-term hedging only
+    "expiries > 7 days": lambda d: d["T"] > 7 / 365,              # ignores the volatile front week
+}
+
+
+def sensitivity(df: pd.DataFrame, include_squeezemetrics: bool) -> pd.Series:
+    """Total GEX under each variant, plus SqueezeMetrics' published SPX GEX when requested."""
+    totals = {name: df.loc[keep(df), "gex"].sum() for name, keep in SENSITIVITY_VARIANTS.items()}
+    if include_squeezemetrics:
+        sm = pd.read_csv(SQUEEZEMETRICS_CSV, parse_dates=["date"]).iloc[-1]
+        totals[f"SqueezeMetrics published ({sm['date']:%Y-%m-%d})"] = float(sm["gex"])
+    return pd.Series(totals, name="total_gex")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--symbol", default="_SPX", help="Cboe symbol: _SPX, SPY, QQQ, AAPL, ...")
@@ -150,18 +170,23 @@ def main() -> None:
     print("Largest net GEX strikes within ±5% of spot ($ millions per 1% move):")
     print((top / 1e6).round(1).to_string(), "\n")
 
-    if args.symbol == "_SPX" and not args.sample:
-        sm = pd.read_csv(SQUEEZEMETRICS_CSV, parse_dates=["date"]).iloc[-1]
-        print(f"SqueezeMetrics SPX GEX for {sm['date']:%Y-%m-%d}: ${sm['gex'] / 1e9:,.2f} bn "
-              f"(this run: ${total / 1e9:,.2f} bn, ratio {total / sm['gex']:.2f}). "
-              "Methods differ: see README.")
+    sens = sensitivity(df, include_squeezemetrics=(args.symbol == "_SPX" and not args.sample))
+    low, high, median = sens.min(), sens.max(), sens.median()
+    if low > 0 or high < 0:
+        verdict = f"sign is consistent: {'positive' if low > 0 else 'negative'} under every assumption"
+    else:
+        verdict = "sign is uncertain: the range crosses zero"
+    print("Sensitivity of total GEX to assumptions ($ bn per 1% move):")
+    print((sens / 1e9).round(2).to_string())
+    print(f"Range: ${low / 1e9:,.2f} to ${high / 1e9:,.2f} bn | Median: ${median / 1e9:,.2f} bn | {verdict}")
 
     out = HERE / "output"
     out.mkdir(exist_ok=True)
     name = "sample" if args.sample else args.symbol.strip("_")
     by_strike.to_csv(out / f"gex_by_strike_{name}.csv")
     profile.rename("total_gex").rename_axis("spot_level").to_csv(out / f"gex_profile_{name}.csv")
-    print(f"\nWritten: output/gex_by_strike_{name}.csv, output/gex_profile_{name}.csv")
+    sens.rename_axis("assumption").to_csv(out / f"gex_sensitivity_{name}.csv")
+    print(f"\nWritten: output/gex_by_strike_{name}.csv, output/gex_profile_{name}.csv, output/gex_sensitivity_{name}.csv")
 
 
 if __name__ == "__main__":
