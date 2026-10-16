@@ -5,7 +5,7 @@ hold, so call gamma counts positive and put gamma negative. GEX is in dollars of
 change per 1% move in the underlying.
 
 Usage:
-    python main.py                    # SPX, with SqueezeMetrics GEX in the sensitivity range
+    python main.py                    # SPX, with SqueezeMetrics GEX printed as a reference
     python main.py --symbol SPY
     python main.py --sample           # offline, from sample/chain.csv
 """
@@ -114,13 +114,16 @@ SENSITIVITY_VARIANTS = {
 }
 
 
-def sensitivity(df: pd.DataFrame, include_squeezemetrics: bool) -> pd.Series:
-    """Total GEX under each variant, plus SqueezeMetrics' published SPX GEX when requested."""
-    totals = {name: df.loc[keep(df), "gex"].sum() for name, keep in SENSITIVITY_VARIANTS.items()}
-    if include_squeezemetrics:
-        sm = pd.read_csv(SQUEEZEMETRICS_CSV, parse_dates=["date"]).iloc[-1]
-        totals[f"SqueezeMetrics published ({sm['date']:%Y-%m-%d})"] = float(sm["gex"])
-    return pd.Series(totals, name="total_gex")
+def sensitivity(df: pd.DataFrame) -> pd.Series:
+    """Total GEX under each variant in SENSITIVITY_VARIANTS."""
+    return pd.Series({name: df.loc[keep(df), "gex"].sum() for name, keep in SENSITIVITY_VARIANTS.items()}, name="total_gex")
+
+
+def squeezemetrics_gex() -> tuple[pd.Timestamp, float]:
+    """Latest SqueezeMetrics SPX GEX (dollars per 1% move). An independent method, so it is printed
+    next to the sensitivity range as a reference rather than mixed into the median or the verdict."""
+    sm = pd.read_csv(SQUEEZEMETRICS_CSV, parse_dates=["date"]).iloc[-1]
+    return sm["date"], float(sm["gex"])
 
 
 def main() -> None:
@@ -170,7 +173,7 @@ def main() -> None:
     print("Largest net GEX strikes within ±5% of spot ($ millions per 1% move):")
     print((top / 1e6).round(1).to_string(), "\n")
 
-    sens = sensitivity(df, include_squeezemetrics=(args.symbol == "_SPX" and not args.sample))
+    sens = sensitivity(df)
     low, high, median = sens.min(), sens.max(), sens.median()
     if low > 0 or high < 0:
         verdict = f"sign is consistent: {'positive' if low > 0 else 'negative'} under every assumption"
@@ -179,6 +182,11 @@ def main() -> None:
     print("Sensitivity of total GEX to assumptions ($ bn per 1% move):")
     print((sens / 1e9).round(2).to_string())
     print(f"Range: ${low / 1e9:,.2f} to ${high / 1e9:,.2f} bn | Median: ${median / 1e9:,.2f} bn | {verdict}")
+    if args.symbol == "_SPX" and not args.sample:
+        sm_date, sm_gex = squeezemetrics_gex()
+        where = "inside" if low <= sm_gex <= high else "outside"
+        print(f"Reference: SqueezeMetrics published SPX GEX ({sm_date:%Y-%m-%d}) ${sm_gex / 1e9:,.2f} bn, "
+              f"{where} the range above (independent method; not part of the median or verdict)")
 
     out = HERE / "output"
     out.mkdir(exist_ok=True)

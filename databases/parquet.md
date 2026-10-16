@@ -20,6 +20,7 @@ Hive-style partition folders (`key=value`) let query engines skip files that don
 --   lake/statement_facts/cik=<10-digit CIK>/facts.parquet
 --   lake/option_quotes/underlying=<SYM>/date=<YYYY-MM-DD>/snapshot-<HHMMSS>.parquet
 --   lake/yield_curve/year=<YYYY>/part-*.parquet
+--   lake/macro_observations/source=<source>/series_id=<ID>/part-*.parquet   (one file per vintage or fetch)
 --
 -- Columns are the same as the tables in duckdb.md; partition keys come back as columns.
 -- Run in DuckDB (in memory or a file) to expose the lake as tables:
@@ -32,6 +33,8 @@ CREATE OR REPLACE VIEW option_quotes AS
     SELECT * FROM read_parquet('lake/option_quotes/**/*.parquet', hive_partitioning = true);
 CREATE OR REPLACE VIEW yield_curve AS
     SELECT * FROM read_parquet('lake/yield_curve/**/*.parquet', hive_partitioning = true);
+CREATE OR REPLACE VIEW macro_observations AS
+    SELECT * FROM read_parquet('lake/macro_observations/**/*.parquet', hive_partitioning = true);
 
 -- On object storage, swap the path: 's3://<bucket>/lake/option_quotes/**/*.parquet'
 -- after `INSTALL httpfs; LOAD httpfs;` and credentials from the environment
@@ -46,6 +49,9 @@ Once the views exist, every query in [duckdb.md](duckdb.md#queries-the-workflows
 -- name: gex_by_strike
 -- Source: SqueezeMetrics, "Gamma Exposure (GEX)" white paper: https://squeezemetrics.com/download/white_paper.pdf
 -- Reads only the SPY folder and only the latest date folder.
+-- Caveat: `gamma` is the gamma the source published. Cboe rounds it to 4 decimals, which for SPX
+-- (gammas near 0.001) is enough to flip the sign of the total. Use this query for the strike-level
+-- shape; for a precise total, recompute gamma from `iv` as workflows/options/gamma does.
 SELECT strike,
        sum(CASE option_type WHEN 'C' THEN 1 ELSE -1 END
            * gamma * open_interest * 100 * underlying_price * underlying_price * 0.01) AS gex_usd

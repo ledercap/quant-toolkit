@@ -85,6 +85,19 @@ CREATE TABLE IF NOT EXISTS yield_curve
 )
 ENGINE = ReplacingMergeTree
 ORDER BY (date, tenor_months, source);
+
+-- Macro series (FRED and others). realtime_start keeps ALFRED vintages;
+-- for plain pulls set it to the date you fetched the data.
+CREATE TABLE IF NOT EXISTS macro_observations
+(
+    series_id      LowCardinality(String),
+    date           Date,
+    value          Nullable(Float64),      -- NULL where the source reports a gap ('.')
+    realtime_start Date,
+    source         LowCardinality(String)
+)
+ENGINE = ReplacingMergeTree
+ORDER BY (series_id, source, realtime_start, date);
 ```
 
 ## Queries the workflows rely on
@@ -125,6 +138,8 @@ WHERE symbol = {symbol:String} AND source = {source:String}
 ORDER BY date;
 
 -- name: risk_free_rate
+-- Nearest tenor, simple par yield. workflows/options/greeks interpolates between tenors and converts
+-- to continuous compounding (r = 2 ln(1 + y/2)); the difference is a few basis points.
 SELECT tenor_months, yield_pct / 100 AS rate
 FROM yield_curve FINAL
 WHERE date = (SELECT max(date) FROM yield_curve WHERE date <= {as_of:Date})
@@ -133,6 +148,9 @@ LIMIT 1;
 
 -- name: gex_by_strike
 -- Source: SqueezeMetrics, "Gamma Exposure (GEX)" white paper: https://squeezemetrics.com/download/white_paper.pdf
+-- Caveat: `gamma` is the gamma the source published. Cboe rounds it to 4 decimals, which for SPX
+-- (gammas near 0.001) is enough to flip the sign of the total. Use this query for the strike-level
+-- shape; for a precise total, recompute gamma from `iv` as workflows/options/gamma does.
 SELECT strike,
        sum(if(option_type = 'C', 1, -1)
            * gamma * open_interest * 100 * underlying_price * underlying_price * 0.01) AS gex_usd

@@ -23,6 +23,7 @@ build/
 *.db
 *.sqlite
 !**/sample/*.csv
+output/
 
 # Tooling
 .DS_Store

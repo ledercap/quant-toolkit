@@ -24,6 +24,8 @@ ArcticDB stores one DataFrame per *symbol* inside a *library*. The schema is the
 #                                                                                  period_end, value, fiscal_year,
 #                                                                                  fiscal_period, form, accn
 #   yield_curve      symbol = 'us-treasury'     index = date             columns: one per tenor in months ('1', '1.5', ... '360')
+#   macro_observations  symbol = series_id      index = date             columns: value, realtime_start, source
+#                    (ArcticDB's own versions also record each re-fetch; keep realtime_start for ALFRED vintages)
 #
 # Indexes must be sorted ascending; option_quotes repeats the same snapshot_ts for every
 # contract in a snapshot, which ArcticDB allows. Keep column dtypes stable between writes,
@@ -33,7 +35,7 @@ ArcticDB stores one DataFrame per *symbol* inside a *library*. The schema is the
 import arcticdb as adb
 
 ac = adb.Arctic("lmdb://./arctic")  # local; for S3: "s3://s3.<region>.amazonaws.com:<bucket>?aws_auth=true"
-for name in ["prices_daily", "option_quotes", "statement_facts", "yield_curve"]:
+for name in ["prices_daily", "option_quotes", "statement_facts", "yield_curve", "macro_observations"]:
     ac.get_library(name, create_if_missing=True)
 ```
 
@@ -60,6 +62,9 @@ def gex_by_strike(underlying: str) -> pd.Series:
     """Dollar gamma per 1% move by strike for the latest snapshot (dealers long calls, short puts).
 
     Source: SqueezeMetrics, "Gamma Exposure (GEX)" white paper: https://squeezemetrics.com/download/white_paper.pdf
+
+    Caveat: `gamma` is the gamma the source published. Cboe rounds it to 4 decimals, enough to flip the
+    sign of an SPX total; recompute from `iv` (as workflows/options/gamma does) for a precise total.
     """
     chain = ac["option_quotes"].read(underlying).data
     latest = chain.loc[chain.index == chain.index.max()]

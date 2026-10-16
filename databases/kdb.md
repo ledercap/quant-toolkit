@@ -32,6 +32,9 @@ option_quotes:([] snapshot_ts:`timestamp$(); sym:`symbol$(); expiry:`date$(); op
 
 yield_curve:([] date:`date$(); tenor_months:`float$(); yield_pct:`float$(); source:`symbol$())
 
+/ Macro series (FRED and others); realtime_start keeps ALFRED vintages. Null floats (0n) mark gaps.
+macro_observations:([] series_id:`symbol$(); date:`date$(); val:`float$(); realtime_start:`date$(); source:`symbol$())
+
 / On disk, save option_quotes as a date-partitioned table (one folder per day) with
 / .Q.dpft[`:hdb; date; `sym; `option_quotes], which also applies the `p# attribute to sym.
 ```
@@ -56,6 +59,7 @@ dailyReturns:{[s;src]
 
 / name: riskFreeRate
 / Yield (decimal) at the tenor nearest dte days, latest curve on or before asof.
+/ Nearest tenor, simple par yield; workflows/options/greeks interpolates and uses continuous compounding.
 riskFreeRate:{[asof;dte]
   d:exec max date from yield_curve where date<=asof;
   c:update dist:abs tenor_months-dte%30.4375 from select from yield_curve where date=d;
@@ -64,6 +68,8 @@ riskFreeRate:{[asof;dte]
 / name: gexByStrike
 / Source: SqueezeMetrics, "Gamma Exposure (GEX)" white paper: https://squeezemetrics.com/download/white_paper.pdf
 / Dollar gamma per 1% move by strike, latest snapshot; dealers long calls (+), short puts (-).
+/ Caveat: gamma is the source's published gamma. Cboe rounds it to 4 decimals, enough to flip the
+/ sign of an SPX total; recompute from iv (as workflows/options/gamma does) for a precise total.
 gexByStrike:{[u]
   t:select from option_quotes where sym=u;
   t:select from t where snapshot_ts=max snapshot_ts;

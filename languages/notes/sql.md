@@ -7,7 +7,7 @@
 | Capability | Score | Why |
 | --- | --- | --- |
 | Data wrangling and cleaning | 4 | Joins, group-bys, pivots and window functions are concise and run fast in columnar engines (DuckDB, ClickHouse). Loses a point because cleaning messy text and nested JSON is clumsier than in pandas. |
-| Financial statement analysis | 4 | Point-in-time fact lookup, ratios and growth are natural set operations; see `annual_fact_as_of` and `annual_growth` in [databases/duckdb.md](../../databases/duckdb.md). Loses a point because fetching and mapping XBRL tags happens outside SQL. |
+| Financial statement analysis | 3 | Point-in-time fact lookup, ratios and growth are natural set operations; see `annual_fact_as_of` and `annual_growth` in [databases/duckdb.md](../../databases/duckdb.md). Loses two points because the hard part, mapping XBRL tags and their changes over time onto line items, happens outside SQL. |
 | Time series and econometrics | 2 | Window functions handle returns, rolling means and lags, and TimescaleDB adds time buckets and gap filling. No modelling: no regressions beyond simple aggregates, no GARCH or ARIMA. |
 | Options pricing and Greeks | 1 | Many dialects lack a normal CDF and there's no root-finding, so pricing and implied vol aren't practical. SQL aggregates Greeks that come from elsewhere (see `gex_by_strike`). |
 | Backtesting | 2 | Simple vectorised signal backtests are possible with window functions. Anything with position state, costs or event ordering belongs in a real backtester. |

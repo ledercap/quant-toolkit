@@ -5,12 +5,12 @@ Which language for which job. Scores are 1 (weak) to 5 (best in class). Every ce
 | Capability | [Python](notes/python.md) | [R](notes/r.md) | [C++](notes/cpp.md) | [Rust](notes/rust.md) | [Julia](notes/julia.md) | [SQL](notes/sql.md) | [q (kdb+)](notes/q.md) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Data wrangling and cleaning | 5 | 5 | 2 | 3 | 4 | 4 | 4 |
-| Financial statement analysis | 5 | 3 | 1 | 1 | 2 | 4 | 2 |
+| Financial statement analysis | 5 | 3 | 1 | 1 | 2 | 3 | 2 |
 | Time series and econometrics | 4 | 5 | 2 | 2 | 3 | 2 | 3 |
-| Options pricing and Greeks | 4 | 3 | 5 | 3 | 4 | 1 | 3 |
+| Options pricing and Greeks | 4 | 3 | 5 | 2 | 4 | 1 | 3 |
 | Backtesting | 5 | 3 | 4 | 3 | 2 | 2 | 3 |
 | Low-latency and HFT execution | 1 | 1 | 5 | 4 | 2 | 1 | 3 |
-| Numerical computation at scale | 4 | 2 | 5 | 4 | 5 | 3 | 4 |
+| Numerical computation at scale | 4 | 2 | 5 | 4 | 4 | 3 | 4 |
 | Machine learning | 5 | 3 | 3 | 2 | 3 | 2 | 1 |
 | Visualisation and reporting | 4 | 5 | 1 | 1 | 3 | 2 | 2 |
 | Native fit with data sources | 5 | 3 | 2 | 2 | 2 | 3 | 2 |
@@ -36,3 +36,5 @@ Create `notes/<language>.md` for each column with the libraries that justify the
 | [low-latency-and-hft-execution.md](notes/low-latency-and-hft-execution.md) | Cross-language comparison for the trading path, including Java, C#, Go and FPGAs |
 
 Scores were set on 2026-10-15 from library documentation and common practice in the industry. They are judgment calls: challenge any of them in a pull request that updates the note with the reason.
+
+Revisions: 2026-10-16, after maintainer review: SQL on financial statement analysis 4 to 3, Rust on options pricing 3 to 2, Julia on numerical computation at scale 5 to 4. Reasons are in the notes.

@@ -9,7 +9,7 @@
 | Data wrangling and cleaning | 3 | Polars is native Rust and excellent, but day-to-day wrangling is quicker in Python on top of that same engine. |
 | Financial statement analysis | 1 | No fundamentals libraries. You would write the EDGAR client and the reshaping yourself. |
 | Time series and econometrics | 2 | A few crates (`linfa` for ML, `statrs`, `augurs` for forecasting), but nothing close to statsmodels or R. |
-| Options pricing and Greeks | 3 | Fast enough for any model; `RustQuant` provides pricers and automatic differentiation but is young next to QuantLib. |
+| Options pricing and Greeks | 2 | Fast enough for any model, and `RustQuant` provides pricers and automatic differentiation, but it is a small project with no production track record next to QuantLib. Expect to write and validate the models yourself. |
 | Backtesting | 3 | NautilusTrader's core engine is Rust, which shows it works. Few standalone Rust frameworks. |
 | Low-latency and HFT execution | 4 | No garbage collector and zero-cost abstractions give C++-class latency, and the compiler rules out whole classes of memory and concurrency bugs. Adoption at trading firms is growing. One point behind C++ on tooling and the established HFT codebase. |
 | Numerical computation at scale | 4 | Native speed, safe multi-threading (Rayon) and SIMD. One point behind C++ and Julia on mature linear algebra and GPU libraries. |

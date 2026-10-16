@@ -26,13 +26,16 @@
 ## Minimal example
 
 ```python
+import datetime as dt
 import io
 
 import pandas as pd
 import requests
 
-day = "20261013"  # a trading day, YYYYMMDD
-url = f"https://cdn.finra.org/equity/regsho/daily/CNMSshvol{day}.txt"
+day = dt.date.today() - dt.timedelta(days=1)  # files appear the evening of each trading day
+while day.weekday() >= 5:  # step back over weekends; market holidays still need a manual step back
+    day -= dt.timedelta(days=1)
+url = f"https://cdn.finra.org/equity/regsho/daily/CNMSshvol{day:%Y%m%d}.txt"
 # The CDN rejects pandas' default urllib user agent with a 403, so fetch with requests.
 text = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30).text
 vol = pd.read_csv(io.StringIO(text), sep="|").dropna(subset=["Symbol"])

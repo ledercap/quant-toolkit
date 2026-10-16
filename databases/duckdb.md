@@ -143,6 +143,8 @@ ORDER BY date;
 -- name: risk_free_rate
 -- Treasury yield (decimal) for the tenor nearest $days_to_expiry,
 -- from the latest curve published on or before $as_of.
+-- Nearest tenor, simple par yield. workflows/options/greeks interpolates between tenors and converts
+-- to continuous compounding (r = 2 ln(1 + y/2)); the difference is a few basis points.
 SELECT tenor_months, yield_pct / 100 AS rate
 FROM yield_curve
 WHERE date = (SELECT max(date) FROM yield_curve WHERE date <= $as_of)
@@ -154,6 +156,9 @@ LIMIT 1;
 -- Dollar gamma exposure per 1% move, by strike, for the latest snapshot.
 -- Convention (SqueezeMetrics): dealers are long calls (+) and short puts (-).
 -- 100 = contract multiplier for US equity and index options.
+-- Caveat: `gamma` is the gamma the source published. Cboe rounds it to 4 decimals, which for SPX
+-- (gammas near 0.001) is enough to flip the sign of the total. Use this query for the strike-level
+-- shape; for a precise total, recompute gamma from `iv` as workflows/options/gamma does.
 SELECT strike,
        sum(CASE option_type WHEN 'C' THEN 1 ELSE -1 END
            * gamma * open_interest * 100 * underlying_price * underlying_price * 0.01) AS gex_usd

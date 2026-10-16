@@ -12,7 +12,7 @@
 | Options pricing and Greeks | 4 | Monte Carlo and PDE code runs at C speed, and `ForwardDiff.jl` and `Enzyme.jl` give exact Greeks by automatic differentiation. Loses a point for no QuantLib-sized library (wrappers and smaller packages only). |
 | Backtesting | 2 | No widely used backtesting framework. |
 | Low-latency and HFT execution | 2 | Fast once compiled, but JIT warm-up and garbage-collector pauses make latency hard to guarantee. |
-| Numerical computation at scale | 5 | Designed for this: JIT-compiled to native code, multiple dispatch, native multi-threading and GPU support (CUDA.jl), and the DifferentialEquations.jl and JuMP ecosystems. |
+| Numerical computation at scale | 4 | Designed for this: JIT-compiled to native code, multiple dispatch, native multi-threading and GPU support (CUDA.jl), and the DifferentialEquations.jl and JuMP ecosystems. Loses a point because GPU and distributed tooling trails CUDA C++ and the Python-fronted frameworks (JAX, PyTorch) in maturity and library coverage. |
 | Machine learning | 3 | Flux.jl, Lux.jl and MLJ.jl work well, especially scientific ML, but the mainstream is Python. |
 | Visualisation and reporting | 3 | Makie and Plots.jl are capable; Pluto notebooks and Quarto support Julia. |
 | Native fit with data sources | 2 | Almost no official clients for the sources here; you write HTTP and JSON code yourself (FredData.jl is an exception). |
