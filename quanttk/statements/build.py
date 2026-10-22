@@ -83,6 +83,26 @@ def apply_concepts(facts: pd.DataFrame, concepts: dict[str, Concept], as_of: dat
     return pd.DataFrame({k: v.reindex(index) for k, v in out.items()}, index=pd.DatetimeIndex(index, name="end"))
 
 
+def coverage_warnings(st: pd.DataFrame, items: list[str]) -> list[str]:
+    """Flag line items reported in an earlier year but missing in a later one.
+
+    SEC company facts only include standard us-gaap tags, so when a filer moves a line to a
+    company-specific tag the item silently disappears. Derived items treat missing parts as 0
+    (e.g. cash_and_investments), so a gap like this understates them. Better to say so.
+    """
+    warnings = []
+    for item in items:
+        if item not in st:
+            continue
+        s = st[item]
+        reported = s.notna()
+        for end in s.index[(~reported) & reported.cummax()]:
+            warnings.append(f"{item} is missing for the year ending {end.date()} but was reported earlier: "
+                            "either the balance is now zero or not disclosed, or the filer moved it to a "
+                            "company-specific XBRL tag; check the 10-K")
+    return warnings
+
+
 def consecutive_years(index: pd.Index) -> pd.Series:
     """True where a row's fiscal year end is about one year after the previous row's."""
     return index.to_series().diff().dt.days.between(*ANNUAL_DAYS)
