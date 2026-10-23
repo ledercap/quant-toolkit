@@ -56,7 +56,7 @@
 ## Caveats
 
 - **Calendar time.** T counts calendar days, so a weekend inside an interval shows up as low forward volatility (for example 0.09–0.10 for the intervals spanning a weekend) and the next interval as high. Trading-day time would smooth this. The VIX method also uses calendar minutes, which is why the replication matches.
-- **VIX rate and timing.** Cboe interpolates Treasury rates with a cubic spline; this uses linear interpolation, worth a few hundredths of a point at most. The published VIX is calculated live during the session. Compare snapshots taken at the same time, ideally after the 16:15 ET close as here.
+- **VIX rate and timing.** Cboe interpolates Treasury rates with a cubic spline; this uses linear interpolation, worth a few hundredths of a point at most. The published VIX is calculated live during the session. Compare snapshots taken at the same time, ideally soon after the 16:15 ET close as here. SPX options also trade overnight (Cboe Global Trading Hours, from 20:15 ET), so a chain fetched late in the evening reflects overnight quotes while the VIX shown is still the 16:15 close. The same day's check run at 21:30 ET gave 19.20 against 19.03, compared with 19.00 at 20:00 ET.
 - **Mid prices:** wide or one-sided markets give unreliable IVs. Contracts with no bid are excluded from the surface. The VIX strip follows Cboe's zero-bid rule instead.
 - **American-style options** (SPY, single stocks) carry an early-exercise premium that Black-76 ignores. IVs, especially deep in-the-money ones, are slightly off. SPX is European.
 - **Realized volatility prices** come from yfinance (personal use only). The implied side doesn't depend on them, and if the download fails the workflow continues without realized volatility.
