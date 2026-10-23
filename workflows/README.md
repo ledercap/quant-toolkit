@@ -25,6 +25,7 @@ Copy `_TEMPLATE.md` into a new folder under the right group to start one.
 | [options/gamma](options/gamma/README.md) | Dealer gamma exposure by strike, walls, gamma flip and a range-and-median sensitivity report | Cboe delayed quotes, SqueezeMetrics (reference) | `python main.py --sample` |
 | [financial-analysis/balance-sheet](financial-analysis/balance-sheet/README.md) | Liquidity, leverage and working capital, point-in-time, with warnings for missing line items | SEC EDGAR | `python main.py --sample` |
 | [financial-analysis/cash-flow](financial-analysis/cash-flow/README.md) | Free cash flow, conversion, capex intensity and shareholder payouts | SEC EDGAR | `python main.py --sample` |
+| [financial-analysis/ratios](financial-analysis/ratios/README.md) | 41 ratios in 8 categories, by year or across peers; valuation at the filing-date price | SEC EDGAR, yfinance (valuation only) | `python main.py --sample` |
 
 Every workflow runs on live data by default (no API keys needed; SEC EDGAR needs `SEC_USER_AGENT`) and has a `--sample` mode that runs offline from its `sample/` folder.
 
