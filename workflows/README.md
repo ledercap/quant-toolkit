@@ -27,6 +27,7 @@ Copy `_TEMPLATE.md` into a new folder under the right group to start one.
 | [financial-analysis/cash-flow](financial-analysis/cash-flow/README.md) | Free cash flow, conversion, capex intensity and shareholder payouts | SEC EDGAR | `python main.py --sample` |
 | [financial-analysis/ratios](financial-analysis/ratios/README.md) | 41 ratios in 8 categories, by year or across peers; valuation at the filing-date price | SEC EDGAR, yfinance (valuation only) | `python main.py --sample` |
 | [options/volatility](options/volatility/README.md) | Term structure, skew, realized vs implied, and a VIX replication check | Cboe delayed quotes, US Treasury yield curve, yfinance (realized only) | `python main.py --sample` |
+| [options/volume](options/volume/README.md) | Put/call ratios, unusual activity, OI concentration, and OI change from a daily snapshot archive | Cboe delayed quotes | `python main.py --sample` |
 
 Every workflow runs on live data by default (no API keys needed; SEC EDGAR needs `SEC_USER_AGENT`) and has a `--sample` mode that runs offline from its `sample/` folder.
 
