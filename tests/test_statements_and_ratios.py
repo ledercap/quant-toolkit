@@ -8,7 +8,7 @@ import pytest
 
 from quanttk.ratios import RATIOS, compute_ratios
 from quanttk.statements.build import annual_instant_values, apply_concepts, average_balance, growth
-from quanttk.statements.concepts import ALL_CONCEPTS, Concept
+from quanttk.statements.concepts import ALL_CONCEPTS
 from quanttk.statements.derived import add_derived, annual_statements
 
 
