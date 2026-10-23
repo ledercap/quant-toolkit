@@ -109,3 +109,10 @@ def test_annual_statements_runs_on_sparse_facts():
     st = annual_statements(FACTS, date(2025, 6, 30))
     assert st.loc["2024-12-31", "revenue"] == 131
     assert st.loc["2024-12-31", "total_assets"] == 600
+
+
+def test_growth_from_a_negative_base_is_blank_when_requested():
+    s = pd.Series([-17.0, 32.0, 40.0], index=pd.to_datetime(["2022-12-31", "2023-12-31", "2024-12-31"]))
+    assert growth(s).iloc[1] == pytest.approx(32 / -17 - 1)       # default keeps the raw ratio
+    g = growth(s, positive_base=True)
+    assert np.isnan(g.iloc[1]) and g.iloc[2] == pytest.approx(0.25)
