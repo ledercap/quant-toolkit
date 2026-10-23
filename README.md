@@ -52,6 +52,8 @@ languages/      Language x capability matrix and notes
 workflows/      Calculations, grouped by statement and by options topic
 databases/      Storage choices, schemas and queries
 sectors/        Sector research built on the toolkit
+quanttk/        Shared calculation library the workflows are built on
+tests/          Unit and regression tests for quanttk and the workflows
 ```
 
 ## Contributing

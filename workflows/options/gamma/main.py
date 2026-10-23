@@ -13,114 +13,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import time
+import sys
 from pathlib import Path
-from zoneinfo import ZoneInfo
-
-import numpy as np
-import pandas as pd
-import requests
 
 HERE = Path(__file__).parent
-ET = ZoneInfo("America/New_York")
-SECONDS_PER_YEAR = 365.0 * 24 * 3600
-MULTIPLIER = 100  # shares per contract for US equity and index options
-AM_SETTLED_ROOTS = {"SPX"}  # SPX monthlies settle at the open; SPXW and equity options at the close
-SQUEEZEMETRICS_CSV = "https://squeezemetrics.com/monitor/static/DIX.csv"
+try:
+    import quanttk  # noqa: F401
+except ImportError:  # running from a checkout without `pip install -e .`
+    sys.path.insert(0, str(HERE.parents[2]))
 
-
-def get_json(url: str, attempts: int = 3) -> dict:
-    """GET with retries: Cboe's CDN occasionally drops large downloads."""
-    for i in range(attempts):
-        try:
-            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=90)
-            r.raise_for_status()
-            return r.json()
-        except requests.RequestException:
-            if i == attempts - 1:
-                raise
-            time.sleep(2 * (i + 1))
-    raise RuntimeError("unreachable")
-
-
-def load_chain(symbol: str) -> tuple[pd.DataFrame, float, pd.Timestamp]:
-    """Cboe delayed chain -> (contracts, spot, snapshot time in UTC)."""
-    raw = get_json(f"https://cdn.cboe.com/api/global/delayed_quotes/options/{symbol}.json")
-    return pd.DataFrame(raw["data"]["options"]), float(raw["data"]["current_price"]), pd.Timestamp(raw["timestamp"], tz="UTC")
-
-
-def parse_contracts(chain: pd.DataFrame, snapshot: pd.Timestamp) -> pd.DataFrame:
-    """Split OCC symbols, compute time to expiry, and keep unexpired contracts with open interest."""
-    parts = chain["option"].str.extract(r"^(?P<root>[A-Z]+)(?P<ymd>\d{6})(?P<cp>[CP])(?P<k>\d{8})$")
-    df = chain.join(parts)
-    df["strike"] = df["k"].astype(int) / 1000
-    expiry_day = pd.to_datetime(df["ymd"], format="%y%m%d")
-    settle_hour = np.where(df["root"].isin(AM_SETTLED_ROOTS), 9.5, 16.0)
-    expiry_utc = (expiry_day + pd.to_timedelta(settle_hour, unit="h")).dt.tz_localize(ET).dt.tz_convert("UTC")
-    df["expiry"] = expiry_day.dt.date
-    df["T"] = (expiry_utc - snapshot).dt.total_seconds() / SECONDS_PER_YEAR
-    df["sign"] = np.where(df["cp"] == "C", 1.0, -1.0)
-    return df[(df["T"] > 0) & (df["open_interest"] > 0)].copy()
-
-
-def gex_dollars(gamma, open_interest, sign, spot):
-    """Dollar delta change per 1% move: sign x gamma x OI x 100 x S x (0.01 x S)."""
-    return sign * gamma * open_interest * MULTIPLIER * spot * spot * 0.01
-
-
-def bs_gamma(S, K, T, sigma):
-    """Black-Scholes gamma with r = q (forward = spot), the approximation used for the flip profile."""
-    sd = sigma * np.sqrt(T)
-    d1 = (np.log(S / K) + 0.5 * sd**2) / sd
-    return np.exp(-0.5 * d1**2) / (np.sqrt(2 * np.pi) * S * sd)
-
-
-def contract_gamma(df: pd.DataFrame, spot: float) -> np.ndarray:
-    """Gamma per contract: recomputed from Cboe's IV where it exists, because Cboe rounds gamma
-    to 4 decimals (an SPX gamma of 0.000853 is published as 0.0009). Contracts without an IV
-    (mostly AM-settled SPX after their last trading day) fall back to Cboe's gamma."""
-    has_iv = df["iv"].values > 0
-    model = bs_gamma(spot, df["strike"].values, df["T"].values, np.where(has_iv, df["iv"].values, 1.0))
-    return np.where(has_iv, model, df["gamma"].values)
-
-
-def gamma_profile(df: pd.DataFrame, spot: float, lo: float = 0.85, hi: float = 1.15, step: float = 0.0025) -> pd.Series:
-    """Total GEX if spot moved to each level on a grid, holding each contract's IV fixed.
-    Contracts without an IV can't be repriced, so their GEX is held at its current value."""
-    has_iv = df["iv"] > 0
-    usable = df[has_iv]
-    fixed = df.loc[~has_iv, "gex"].sum()
-    K, T, iv, oi, sign = (usable[c].values for c in ("strike", "T", "iv", "open_interest", "sign"))
-    levels = spot * np.arange(lo, hi + step / 2, step)
-    totals = [gex_dollars(bs_gamma(s, K, T, iv), oi, sign, s).sum() + fixed for s in levels]
-    return pd.Series(totals, index=levels)
-
-
-def zero_crossing(profile: pd.Series, spot: float) -> float | None:
-    """Spot level where total GEX changes sign, nearest to the current spot (linear interpolation)."""
-    x, y = profile.index.values, profile.values
-    crossings = [x[i] - y[i] * (x[i + 1] - x[i]) / (y[i + 1] - y[i]) for i in range(len(y) - 1) if y[i] * y[i + 1] < 0]
-    return min(crossings, key=lambda c: abs(c - spot)) if crossings else None
-
-
-# Each variant is one defensible assumption about which contracts drive dealer hedging.
-# Reporting the range and median across them shows how much the headline depends on choices.
-SENSITIVITY_VARIANTS = {
-    "base (all expiries)": lambda d: pd.Series(True, index=d.index),
-    "excl. 0-1 day expiries": lambda d: d["T"] > 1 / 365,         # OI is a day stale for same-day options
-    "excl. contracts with no IV": lambda d: d["iv"] > 0,          # only contracts with precise model gamma
-    "expiries <= 90 days": lambda d: d["T"] <= 90 / 365,          # near-term hedging only
-    "expiries > 7 days": lambda d: d["T"] > 7 / 365,              # ignores the volatile front week
-}
-
-
-def sensitivity(df: pd.DataFrame, include_squeezemetrics: bool) -> pd.Series:
-    """Total GEX under each variant, plus SqueezeMetrics' published SPX GEX when requested."""
-    totals = {name: df.loc[keep(df), "gex"].sum() for name, keep in SENSITIVITY_VARIANTS.items()}
-    if include_squeezemetrics:
-        sm = pd.read_csv(SQUEEZEMETRICS_CSV, parse_dates=["date"]).iloc[-1]
-        totals[f"SqueezeMetrics published ({sm['date']:%Y-%m-%d})"] = float(sm["gex"])
-    return pd.Series(totals, name="total_gex")
+from quanttk.options.gex import (  # noqa: E402
+    contract_gamma, gamma_profile, gex_contracts, gex_dollars, sensitivity, summarize_range, zero_crossing,
+)
+from quanttk.sources.cboe import load_chain, load_sample_chain  # noqa: E402
 
 
 def main() -> None:
@@ -130,14 +35,13 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.sample:
-        chain = pd.read_csv(HERE / "sample" / "chain.csv")
-        spot, snapshot = float(chain["spot"].iloc[0]), pd.Timestamp(chain["snapshot_utc"].iloc[0], tz="UTC")
+        chain, spot, snapshot = load_sample_chain(HERE / "sample" / "chain.csv")
         label = "SPX (sample)"
     else:
         chain, spot, snapshot = load_chain(args.symbol)
         label = args.symbol
 
-    df = parse_contracts(chain, snapshot)
+    df = gex_contracts(chain, snapshot)
     df["gamma_used"] = contract_gamma(df, spot)
     df["gex"] = gex_dollars(df["gamma_used"], df["open_interest"], df["sign"], spot)
     gex_cboe_rounded = gex_dollars(df["gamma"], df["open_interest"], df["sign"], spot).sum()
@@ -171,11 +75,8 @@ def main() -> None:
     print((top / 1e6).round(1).to_string(), "\n")
 
     sens = sensitivity(df, include_squeezemetrics=(args.symbol == "_SPX" and not args.sample))
-    low, high, median = sens.min(), sens.max(), sens.median()
-    if low > 0 or high < 0:
-        verdict = f"sign is consistent: {'positive' if low > 0 else 'negative'} under every assumption"
-    else:
-        verdict = "sign is uncertain: the range crosses zero"
+    rng = summarize_range(sens)
+    low, high, median, verdict = rng["low"], rng["high"], rng["median"], rng["verdict"]
     print("Sensitivity of total GEX to assumptions ($ bn per 1% move):")
     print((sens / 1e9).round(2).to_string())
     print(f"Range: ${low / 1e9:,.2f} to ${high / 1e9:,.2f} bn | Median: ${median / 1e9:,.2f} bn | {verdict}")

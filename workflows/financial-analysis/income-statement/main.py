@@ -12,85 +12,30 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
-import requests
 
 HERE = Path(__file__).parent
+try:
+    import quanttk  # noqa: F401
+except ImportError:  # running from a checkout without `pip install -e .`
+    sys.path.insert(0, str(HERE.parents[2]))
 
-# Each line item maps to XBRL us-gaap tags in priority order. Companies switch tags
-# over time (Apple used `Revenues` until FY2018), so the first tag with a value wins.
-CONCEPTS: dict[str, list[str]] = {
-    "revenue": [
-        "RevenueFromContractWithCustomerExcludingAssessedTax",
-        "Revenues",
-        "SalesRevenueNet",
-        "RevenueFromContractWithCustomerIncludingAssessedTax",
-    ],
-    "cost_of_revenue": ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold"],
-    "gross_profit": ["GrossProfit"],
-    "operating_income": ["OperatingIncomeLoss"],
-    "net_income": ["NetIncomeLoss"],
-}
-ANNUAL_FORMS = {"10-K", "10-K/A"}
+from quanttk.sources.edgar import fetch_facts, ticker_to_cik  # noqa: E402
+from quanttk.statements.build import apply_concepts, growth  # noqa: E402
+from quanttk.statements.concepts import INCOME_STATEMENT, tags_for  # noqa: E402
+
+ITEMS = ["revenue", "cost_of_revenue", "gross_profit", "operating_income", "net_income"]
+CONCEPTS = {k: INCOME_STATEMENT[k] for k in ITEMS}
 MIN_GROWTH_FOR_DOL = 0.01
 
 
-def sec_headers() -> dict[str, str]:
-    """SEC requires a descriptive User-Agent (name and email) on every request."""
-    ua = os.environ.get("SEC_USER_AGENT")
-    if not ua:
-        sys.exit("Set SEC_USER_AGENT, e.g. export SEC_USER_AGENT='Jane Doe jane@example.com'")
-    return {"User-Agent": ua}
-
-
-def ticker_to_cik(ticker: str) -> str:
-    """Map a ticker to its 10-digit, zero-padded CIK using the SEC's ticker file."""
-    rows = requests.get("https://www.sec.gov/files/company_tickers.json", headers=sec_headers(), timeout=30).json()
-    for row in rows.values():
-        if row["ticker"].upper() == ticker.upper():
-            return f"{row['cik_str']:010d}"
-    sys.exit(f"Ticker {ticker} not found in SEC company_tickers.json")
-
-
-def fetch_facts(cik: str) -> pd.DataFrame:
-    """All USD us-gaap facts for the tags in CONCEPTS, one row per reported fact."""
-    url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-    gaap = requests.get(url, headers=sec_headers(), timeout=60).json()["facts"].get("us-gaap", {})
-    tags = {t for tag_list in CONCEPTS.values() for t in tag_list}
-    rows = [
-        {"tag": tag, "start": f.get("start"), "end": f["end"], "value": f["val"], "form": f.get("form"), "filed": f["filed"]}
-        for tag in tags if tag in gaap
-        for f in gaap[tag]["units"].get("USD", [])
-    ]
-    return pd.DataFrame(rows)
-
-
-def annual_values(facts: pd.DataFrame, as_of: date) -> pd.DataFrame:
-    """One value per fiscal year end per tag: annual duration, 10-K forms, latest filing on or before as_of."""
-    f = facts.copy()
-    for col in ("start", "end", "filed"):
-        f[col] = pd.to_datetime(f[col])
-    days = (f["end"] - f["start"]).dt.days
-    f = f[days.between(350, 380) & f["form"].isin(ANNUAL_FORMS) & (f["filed"] <= pd.Timestamp(as_of))]
-    f = f.sort_values("filed").groupby(["tag", "end"], as_index=False).last()
-    return f.pivot(index="end", columns="tag", values="value")
-
-
-def build_statement(wide: pd.DataFrame) -> pd.DataFrame:
-    """Collapse tag columns into line items using the priority order in CONCEPTS."""
-    out = pd.DataFrame(index=wide.index)
-    for item, tags in CONCEPTS.items():
-        series = pd.Series(float("nan"), index=wide.index)
-        for tag in tags:  # earlier tags win; later tags only fill years still missing
-            if tag in wide:
-                series = series.fillna(wide[tag])
-        out[item] = series
-    # Some filers report revenue and cost of revenue but not gross profit.
+def build_statement(facts: pd.DataFrame, as_of: date) -> pd.DataFrame:
+    """Annual line items, point-in-time. Some filers report revenue and cost of revenue but not gross profit."""
+    out = apply_concepts(facts, CONCEPTS, as_of)
     out["gross_profit"] = out["gross_profit"].fillna(out["revenue"] - out["cost_of_revenue"])
     return out.dropna(subset=["revenue"]).sort_index()
 
@@ -101,10 +46,8 @@ def add_metrics(s: pd.DataFrame) -> pd.DataFrame:
     m["gross_margin"] = m["gross_profit"] / m["revenue"]
     m["operating_margin"] = m["operating_income"] / m["revenue"]
     m["net_margin"] = m["net_income"] / m["revenue"]
-    # Growth is only meaningful between consecutive fiscal years (about 365 days apart).
-    consecutive = m.index.to_series().diff().dt.days.between(350, 380)
-    for col in ("revenue", "operating_income", "net_income"):
-        m[f"{col}_growth"] = (m[col] / m[col].shift(1) - 1).where(consecutive)
+    for col in ("revenue", "operating_income", "net_income"):  # consecutive fiscal years only
+        m[f"{col}_growth"] = growth(m[col])
     # DOL divides by revenue growth, so it explodes as growth approaches zero: leave it blank below 1%.
     m["operating_leverage"] = (m["operating_income_growth"] / m["revenue_growth"]).where(m["revenue_growth"].abs() >= MIN_GROWTH_FOR_DOL)
     return m
@@ -122,11 +65,11 @@ def main() -> None:
         facts, label = pd.read_csv(HERE / "sample" / "aapl_facts.csv"), "AAPL (sample)"
     else:
         cik = ticker_to_cik(args.ticker)
-        facts, label = fetch_facts(cik), f"{args.ticker.upper()} (CIK {cik})"
+        facts, label = fetch_facts(cik, tags_for(CONCEPTS)), f"{args.ticker.upper()} (CIK {cik})"
     if facts.empty:
         sys.exit("No matching us-gaap USD facts found for this company.")
 
-    table = add_metrics(build_statement(annual_values(facts, args.as_of))).tail(args.years)
+    table = add_metrics(build_statement(facts, args.as_of)).tail(args.years)
 
     usd_m = ["revenue", "gross_profit", "operating_income", "net_income"]
     pct = ["gross_margin", "operating_margin", "net_margin", "revenue_growth", "operating_income_growth", "net_income_growth"]
