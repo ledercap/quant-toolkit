@@ -89,3 +89,18 @@ def test_realized_vol_of_constant_returns_is_zero_and_scales():
     alt = pd.Series(100 * np.exp(np.cumsum([0.01, -0.01] * 35)))
     # last 10 returns are five +1% and five -1%: mean 0, sample stdev 0.01 * sqrt(10 / 9)
     assert volatility.realized_vol(alt)["10d"] == pytest.approx(0.01 * np.sqrt(10 / 9) * np.sqrt(252), rel=1e-9)
+
+
+def test_snapshot_lake_finds_the_previous_market_day(tmp_path, monkeypatch):
+    pytest.importorskip("pyarrow")
+    from quanttk.sources import snapshots
+
+    monkeypatch.setenv("QUANTTK_LAKE", str(tmp_path))
+    chain = pd.DataFrame({"option": ["SPY261120C00700000"], "open_interest": [100]})
+    day1 = pd.Timestamp("2026-10-23 00:05", tz="UTC")   # 20:05 ET on Oct 22, after the close
+    day2 = pd.Timestamp("2026-10-23 21:00", tz="UTC")   # 17:00 ET on Oct 23
+    path = snapshots.save_snapshot(chain, 700.0, day1, "SPY")
+    assert path.parent.name == "date=2026-10-22"         # filed under the market date, not the UTC date
+    assert snapshots.latest_snapshot_before("SPY", day1) is None
+    found, ts = snapshots.latest_snapshot_before("SPY", day2)
+    assert ts == day1 and found["open_interest"].tolist() == [100]
