@@ -90,7 +90,7 @@ def main() -> None:
     if closes is not None and len(closes) > 25:
         rv = realized_vol(closes)
         print("Realized vs implied:")
-        print(f"  realized vol (close-to-close, annualized): " + ", ".join(f"{k} {v:.2%}" for k, v in rv.items()))
+        print("  realized vol (close-to-close, annualized): " + ", ".join(f"{k} {v:.2%}" for k, v in rv.items()))
         if not np.isnan(iv30) and "21d" in rv:
             print(f"  30-day ATM implied vol {iv30:.2%} - 21-day realized {rv['21d']:.2%} = "
                   f"volatility risk premium {iv30 - rv['21d']:+.2%}")
