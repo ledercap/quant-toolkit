@@ -26,7 +26,7 @@ GEXᵢ = sᵢ · Γᵢ · OIᵢ · 100 · S · (0.01 · S)
 - **Per strike:** GEX(K) = Σ GEXᵢ over contracts with strike K, across all expiries. Total GEX = Σᵢ GEXᵢ.
 - **Call wall** = argmax over K of call GEX(K). **Put wall** = argmin over K of put GEX(K).
 
-**Gamma per contract.** Gamma is recomputed with Black-Scholes from Cboe's implied volatility σᵢ, with the rate set equal to the dividend yield (forward = spot):
+**Gamma per contract.** Gamma is recomputed with Black-Scholes from Cboe's implied volatility σᵢ, with the rate and dividend yield both set to zero (forward = spot, no discounting). The exact Black-Scholes-Merton gamma has an extra factor e^{−qT}; for SPX (q ≈ 1.3%) that's about 0.1% at one month, small next to the other assumptions:
 
 Γᵢ = φ(d₁) / (S σᵢ √T), d₁ = [ln(S/K) + σᵢ²T/2] / (σᵢ√T)
 

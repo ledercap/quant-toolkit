@@ -1,0 +1,6 @@
+assumption,total_gex
+base (all expiries),132591917.14534737
+excl. 0-1 day expiries,132591917.14534737
+excl. contracts with no IV,132591917.14534737
+expiries <= 90 days,132591917.14534737
+expiries > 7 days,132591917.14534737

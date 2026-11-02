@@ -1,0 +1,35 @@
+SPX (sample): spot 7,744.06, snapshot 2026-10-16 03:06 UTC, 90 contracts with open interest across 1 expiries
+
+Total GEX:            $0.13 bn per 1% move (positive: dealers dampen moves)
+  of which calls:     $5.67 bn, puts: $-5.54 bn
+  0-1 day expiries:   $0.00 bn
+Call wall:            7,700 (largest positive call GEX)
+Put wall:             7,700 (largest negative put GEX)
+Gamma flip:           7,661 (-1.1% from spot)
+For reference:        $0.15 bn using Cboe's published (rounded) gamma; 0 contracts had no IV and use Cboe's gamma
+
+Largest net GEX strikes within ±5% of spot ($ millions per 1% move):
+cp      call_gex  put_gex  net_gex
+strike                            
+7635.0       5.8    -35.2    -29.4
+7640.0       5.5    -50.2    -44.8
+7650.0     312.2   -585.1   -273.0
+7665.0      11.0    -38.3    -27.3
+7675.0     105.4   -250.8   -145.4
+7700.0    1215.8  -1347.5   -131.7
+7745.0      38.1    -87.7    -49.6
+7750.0     545.5   -651.5   -106.0
+7760.0     103.5   -131.9    -28.4
+7775.0     254.6   -118.7    136.0
+7830.0     434.5    -40.9    393.6
+7850.0     769.8   -334.8    435.0 
+
+Sensitivity of total GEX to assumptions ($ bn per 1% move):
+base (all expiries)           0.13
+excl. 0-1 day expiries        0.13
+excl. contracts with no IV    0.13
+expiries <= 90 days           0.13
+expiries > 7 days             0.13
+Range: $0.13 to $0.13 bn | Median: $0.13 bn | sign is consistent: positive under every assumption
+
+Written: output/gex_by_strike_sample.csv, output/gex_profile_sample.csv, output/gex_sensitivity_sample.csv

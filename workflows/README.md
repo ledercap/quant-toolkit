@@ -25,3 +25,5 @@ Copy `_TEMPLATE.md` into a new folder under the right group to start one.
 | [options/gamma](options/gamma/README.md) | Dealer gamma exposure by strike, walls, gamma flip and a range-and-median sensitivity report | Cboe delayed quotes, SqueezeMetrics (reference) | `python main.py --sample` |
 
 Every workflow runs on live data by default (no API keys needed; SEC EDGAR needs `SEC_USER_AGENT`) and has a `--sample` mode that runs offline from its `sample/` folder.
+
+The calculations themselves live in the shared library [`quanttk/`](../quanttk/README.md); each `main.py` loads data, calls the library and prints the report. Run `pytest` from the repo root to test both.

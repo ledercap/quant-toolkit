@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quanttk"
+version = "0.1.0"
+description = "Shared calculation library behind the quant-toolkit workflows"
+readme = "quanttk/README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "requests>=2.31",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+prices = ["yfinance>=0.2.40"]      # quanttk.sources.prices (personal use only; see data-sources/yfinance.md)
+lake = ["pyarrow>=14"]             # quanttk.sources.snapshots (Parquet snapshot archive)
+test = ["pytest>=7"]
+all = ["yfinance>=0.2.40", "pyarrow>=14", "pytest>=7"]
+
+[tool.setuptools.packages.find]
+include = ["quanttk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["network: needs internet access (live SEC EDGAR / Cboe / Treasury data)"]

@@ -1,0 +1,16 @@
+AAPL (sample), fiscal years ending, as of 2026-10-22. USD millions; margins and growth in %.
+
+                        2021-09-25 2022-09-24 2023-09-30 2024-09-28 2025-09-27
+revenue                    365,817    394,328    383,285    391,035    416,161
+gross_profit               152,836    170,782    169,148    180,683    195,201
+operating_income           108,949    119,437    114,301    123,216    133,050
+net_income                  94,680     99,803     96,995     93,736    112,010
+gross_margin                  41.8       43.3       44.1       46.2       46.9
+operating_margin              29.8       30.3       29.8       31.5       32.0
+net_margin                    25.9       25.3       25.3       24.0       26.9
+revenue_growth                33.3        7.8       -2.8        2.0        6.4
+operating_income_growth       64.4        9.6       -4.3        7.8        8.0
+net_income_growth             64.9        5.4       -2.8       -3.4       19.5
+operating_leverage            1.94       1.24       1.54       3.86       1.24
+
+Full table written to output/income_statement_sample.csv
