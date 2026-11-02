@@ -5,6 +5,8 @@ Conventions:
   divide by the AVERAGE of opening and closing balances, (X_{t-1} + X_t) / 2, so they need
   the prior year and are NaN for the first year shown.
 - Division by zero or by a missing value gives NaN, never an error or infinity.
+- Growth of items that can be negative (operating income, EPS, free cash flow) is NaN when
+  the prior year is zero or negative, since growth from a loss has no meaningful percentage.
 - Valuation ratios use the as-traded price on the date the year's first 10-K was filed
   (`first_filed`), so a backtest never sees a ratio before the filing was public.
 
@@ -113,9 +115,9 @@ RATIOS: list[Ratio] = [
           lambda d: div(col(d, "dividends_paid").fillna(0) + col(d, "buybacks").fillna(0), d.net_income), "CFA", "%"),
     # Growth (consecutive fiscal years only)
     Ratio("revenue_growth", "growth", "revenue_t / revenue_{t-1} - 1", lambda d: growth(d.revenue), "CFA", "%"),
-    Ratio("operating_income_growth", "growth", "operating_income_t / operating_income_{t-1} - 1", lambda d: growth(d.operating_income), "CFA", "%"),
-    Ratio("eps_growth", "growth", "eps_diluted_t / eps_diluted_{t-1} - 1", lambda d: growth(col(d, "eps_diluted")), "CFA", "%"),
-    Ratio("fcf_growth", "growth", "free_cash_flow_t / free_cash_flow_{t-1} - 1", lambda d: growth(d.free_cash_flow), "CFA", "%"),
+    Ratio("operating_income_growth", "growth", "operating_income_t / operating_income_{t-1} - 1", lambda d: growth(d.operating_income, positive_base=True), "CFA", "%"),
+    Ratio("eps_growth", "growth", "eps_diluted_t / eps_diluted_{t-1} - 1", lambda d: growth(col(d, "eps_diluted"), positive_base=True), "CFA", "%"),
+    Ratio("fcf_growth", "growth", "free_cash_flow_t / free_cash_flow_{t-1} - 1", lambda d: growth(d.free_cash_flow, positive_base=True), "CFA", "%"),
     # Valuation (needs price and market_cap columns; see add_valuation_inputs)
     Ratio("pe", "valuation", "price / eps_diluted", lambda d: div(col(d, "price"), col(d, "eps_diluted")), "DAM"),
     Ratio("pb", "valuation", "market_cap / equity", lambda d: div(col(d, "market_cap"), d.equity), "DAM"),

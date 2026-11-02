@@ -108,9 +108,15 @@ def consecutive_years(index: pd.Index) -> pd.Series:
     return index.to_series().diff().dt.days.between(*ANNUAL_DAYS)
 
 
-def growth(series: pd.Series) -> pd.Series:
-    """Year-over-year growth X_t / X_{t-1} - 1, only between consecutive fiscal years."""
-    return (series / series.shift(1) - 1).where(consecutive_years(series.index))
+def growth(series: pd.Series, positive_base: bool = False) -> pd.Series:
+    """Year-over-year growth X_t / X_{t-1} - 1, only between consecutive fiscal years.
+
+    With positive_base=True, growth is NaN when the prior year is zero or negative: growth
+    from a loss (e.g. free cash flow going from -17bn to +32bn) has no meaningful percentage.
+    """
+    prior = series.shift(1)
+    g = (series / prior - 1).where(consecutive_years(series.index))
+    return g.where(prior > 0) if positive_base else g
 
 
 def average_balance(series: pd.Series) -> pd.Series:
